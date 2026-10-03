@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{color-scheme:light;padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+</style>
+<title>買前算一算</title>
+<meta name="description" content="輸入想買的東西和價格，看看同樣的錢拿去投資，幾年後會變多少。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="買前算一算">
+<meta property="og:description" content="輸入想買的東西和價格，看看同樣的錢拿去投資，幾年後會變多少。">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;800&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: one-column phone app. What you buy on top, the big result right under it, then assumptions, then a bar per time horizon. */
+:root {
+  --bg: #EDF0F3;
+  --surface: #FFFFFF;
+  --fg: #131C26;
+  --muted: #586878;
+  --line: #D8DEE5;
+  --track: #E4E9EE;
+  --spent: #9AA7B4;
+  --up: #CF2F2A;
+  --up-soft: #FBE8E7;
+  --down: #16794A;
+  --ctl: #131C26;
+  --on-ctl: #FFFFFF;
+  --f-num: 'Bricolage Grotesque', 'Noto Sans TC', system-ui, sans-serif;
+  --f-body: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D131A; --surface: #16202A; --fg: #E9EEF3; --muted: #98A6B4; --line: #283441;
+    --track: #223040; --spent: #5B6B7B; --up: #FF6F68; --up-soft: #3B2022; --down: #4CC38A;
+    --ctl: #E9EEF3; --on-ctl: #0D131A; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D131A; --surface: #16202A; --fg: #E9EEF3; --muted: #98A6B4; --line: #283441;
+  --track: #223040; --spent: #5B6B7B; --up: #FF6F68; --up-soft: #3B2022; --down: #4CC38A;
+  --ctl: #E9EEF3; --on-ctl: #0D131A; color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.55;
+  padding-inline: 16px;
+  padding-block: 20px 40px;
+}
+.app { max-width: 440px; margin-inline: auto; display: flex; flex-direction: column; gap: 22px; }
+.app > * { min-width: 0; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--up); outline-offset: 2px; }
+
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.brand { font-weight: 700; font-size: 17px; letter-spacing: .02em; }
+.brand-sub { color: var(--muted); font-size: 12px; }
+
+.sec-title { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: .08em; margin: 0 0 10px; }
+.group { display: flex; flex-direction: column; gap: 12px; }
+
+.row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > label, .lab { font-size: 12px; color: var(--muted); }
+.in {
+  width: 100%; min-width: 0; box-sizing: border-box;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; font-size: 16px;
+}
+.money { position: relative; }
+.money .pre { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
+.money .in { padding-left: 44px; font-family: var(--f-num); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; background: var(--track); border-radius: 10px; }
+.seg button, .chips button {
+  border: 0; background: transparent; color: var(--muted);
+  padding: 9px 8px; border-radius: 8px; font-weight: 500; cursor: pointer;
+}
+.seg button[aria-pressed="true"], .chips button[aria-pressed="true"] { background: var(--ctl); color: var(--on-ctl); }
+
+/* Hero result. Red means up, the Taiwan stock market convention. */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px 16px; }
+.hero { display: flex; flex-direction: column; gap: 10px; }
+.lead { margin: 0; color: var(--muted); font-size: 14px; text-wrap: balance; }
+.num {
+  margin: 0; color: var(--up); font-family: var(--f-num); font-weight: 800;
+  font-size: clamp(2.7rem, 15vw, 3.9rem); line-height: 1.05; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.num .cur { font-size: .4em; font-weight: 500; margin-right: .25em; letter-spacing: 0; }
+.num .unit { font-size: .4em; font-weight: 700; margin-left: .2em; letter-spacing: 0; }
+.mult-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.mult { display: inline-flex; background: var(--up-soft); color: var(--up); font-family: var(--f-num); font-weight: 800; padding: 1px 11px; border-radius: 999px; font-size: 15px; }
+.real-note { font-size: 12px; color: var(--muted); }
+.stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.stat .lab { display: block; }
+.stat .val { font-family: var(--f-num); font-weight: 800; font-size: 18px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.val.up { color: var(--up); }
+.val.down { color: var(--down); }
+.think { margin: 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; }
+.think b { font-weight: 700; }
+.think .ask { display: block; color: var(--muted); margin-top: 2px; }
+
+/* Assumptions */
+.slider-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.slider-head .v { font-family: var(--f-num); font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; margin: 6px 0 0; accent-color: var(--up); }
+.chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.chips button { border: 1px solid var(--line); background: var(--surface); padding: 8px 4px; font-size: 13px; }
+.chips button[aria-pressed="true"] { border-color: var(--ctl); }
+.chips .r { font-family: var(--f-num); font-weight: 800; font-variant-numeric: tabular-nums; margin-left: 2px; }
+.chips.one { grid-template-columns: minmax(0, 1fr); }
+.fund-note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.check input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--up); flex: none; }
+.check .t { display: block; }
+.check .s { display: block; font-size: 12px; color: var(--muted); }
+
+/* Milestones */
+.ms-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.ms-head .sec-title { margin: 0; }
+.hint { font-size: 12px; color: var(--muted); }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin: 6px 0 10px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.rows { display: flex; flex-direction: column; gap: 4px; }
+.ms {
+  display: grid; grid-template-columns: 3em minmax(0, 1fr) 6.6em; gap: 10px; align-items: center;
+  width: 100%; text-align: left; background: transparent; border: 1px solid transparent;
+  border-radius: 10px; padding: 8px 8px; cursor: pointer;
+}
+.ms[aria-pressed="true"] { border-color: var(--line); background: var(--bg); }
+.ms .y { font-size: 13px; color: var(--muted); }
+.ms[aria-pressed="true"] .y { color: var(--fg); font-weight: 700; }
+.ms .bar { height: 14px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.ms .fv { display: block; height: 100%; background: var(--up); border-radius: 4px; overflow: hidden; }
+.ms .sp { display: block; height: 100%; background: var(--spent); }
+.ms .v { text-align: right; font-family: var(--f-num); font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+
+.foot { margin: 0; font-size: 12px; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) {
+  .ms .fv { transition: width .25s ease; }
+}
+</style>
+
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <span class="brand">買前算一算</span>
+    <span class="brand-sub">未來價值計算機</span>
+  </header>
+
+  <section class="group" aria-labelledby="t-what">
+    <h2 class="sec-title" id="t-what">想買什麼</h2>
+    <div class="row2">
+      <div class="field">
+        <label for="name">品名</label>
+        <input class="in" id="name" type="text" value="水瓶" maxlength="20" autocomplete="off" placeholder="例如：水瓶">
+      </div>
+      <div class="field">
+        <label for="price" id="priceLabel">價格</label>
+        <div class="money">
+          <span class="pre">NT$</span>
+          <input class="in" id="price" type="number" inputmode="decimal" min="0" step="any" value="800">
+        </div>
+      </div>
+    </div>
+    <div class="seg" role="group" aria-label="購買頻率">
+      <button type="button" id="modeOnce" aria-pressed="true">只買一次</button>
+      <button type="button" id="modeMonthly" aria-pressed="false">每月都買</button>
+    </div>
+  </section>
+
+  <section class="card hero" aria-live="polite">
+    <p class="lead" id="lead"></p>
+    <p class="num"><span class="cur">NT$</span><span id="num">0</span><span class="unit" id="unit"></span></p>
+    <div class="mult-row">
+      <span class="mult" id="mult"></span>
+      <span class="real-note" id="realNote" hidden>已換算成今天的購買力</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="lab">這段時間花掉</span><span class="val" id="spent"></span></div>
+      <div class="stat"><span class="lab" id="gainLab">投資多出</span><span class="val up" id="gain"></span></div>
+    </div>
+    <p class="think" id="think"></p>
+  </section>
+
+  <section class="group" aria-labelledby="t-assume">
+    <h2 class="sec-title" id="t-assume">投資假設</h2>
+    <div>
+      <div class="slider-head"><label class="lab" for="years">投資年數</label><span class="v" id="yearsV">20 年</span></div>
+      <input type="range" id="years" min="1" max="40" step="1" value="20">
+    </div>
+    <div>
+      <div class="slider-head"><label class="lab" for="rate">年化報酬率（假設值）</label><span class="v" id="rateV">7.0%</span></div>
+      <input type="range" id="rate" min="0" max="15" step="0.5" value="7">
+      <div class="chips" role="group" aria-label="常用報酬率">
+        <button type="button" data-rate="4" aria-pressed="false">保守<span class="r">4%</span></button>
+        <button type="button" data-rate="7" aria-pressed="true">穩健<span class="r">7%</span></button>
+        <button type="button" data-rate="10" aria-pressed="false">積極<span class="r">10%</span></button>
+      </div>
+      <div class="chips one" role="group" aria-label="指數型基金">
+        <button type="button" data-rate="9" data-fund="1" aria-pressed="false">0050 元大台灣50<span class="r">長期約 9%</span></button>
+      </div>
+      <p class="fund-note" id="fundNote" hidden>0050 是元大台灣50 ETF。這裡用長期歷史年化約 9% 試算。不同來源算出的長期數字約 8% 到 13%，近幾年更高，但過去的績效不代表未來。</p>
+    </div>
+    <label class="check" for="real">
+      <input type="checkbox" id="real">
+      <span><span class="t">扣掉通膨</span><span class="s">假設物價每年漲 2%，結果換算成今天的購買力</span></span>
+    </label>
+  </section>
+
+  <section class="card" aria-labelledby="t-ms">
+    <div class="ms-head">
+      <h2 class="sec-title" id="t-ms">不同年數的結果</h2>
+      <span class="hint">點一下可切換年數</span>
+    </div>
+    <div class="legend"><span><i style="background:var(--spent)"></i>花掉的本金</span><span><i style="background:var(--up)"></i>投資成長</span></div>
+    <div class="rows" id="rows"></div>
+  </section>
+
+  <p class="foot">此為固定報酬率的試算。實際股市會上下波動，也可能虧損，且未計手續費與稅金。僅供消費決策參考，不是投資建議。台股習慣以紅色代表上漲，本頁沿用。</p>
+</main>
+
+<script>
+/* ---- Pure logic ---- */
+const INFL = 2;
+function growth(price, mode, years, rate, real) {
+  const R = real ? (1 + rate / 100) / (1 + INFL / 100) - 1 : rate / 100;
+  if (mode === 'once') {
+    return { fv: price * Math.pow(1 + R, years), spent: price };
+  }
+  const i = Math.pow(1 + R, 1 / 12) - 1;
+  const n = years * 12;
+  const fv = Math.abs(i) < 1e-9 ? price * n : price * (Math.pow(1 + i, n) - 1) / i;
+  return { fv: fv, spent: price * n };
+}
+function parts(n) {
+  n = Math.max(0, Math.round(n));
+  if (n >= 1e8) return [(n / 1e8).toFixed(2), '億'];
+  if (n >= 1e5) return [(n / 1e4).toFixed(1), '萬'];
+  return [n.toLocaleString('zh-TW'), ''];
+}
+function nt(n) {
+  const p = parts(n);
+  return 'NT$' + p[0] + (p[1] ? ' ' + p[1] : '');
+}
+function times(x) { return x >= 100 ? x.toFixed(0) : x.toFixed(1); }
+</script>
+
+<script>
+/* ---- UI ---- */
+const $ = function (id) { return document.getElementById(id); };
+const S = { name: '水瓶', price: 800, mode: 'once', years: 20, rate: 7, real: false, fund: false };
+const YEARS = [5, 10, 20, 30, 40];
+
+function render() {
+  const g = growth(S.price, S.mode, S.years, S.rate, S.real);
+  const name = S.name.trim();
+  const once = S.mode === 'once';
+
+  $('priceLabel').textContent = once ? '價格' : '每月花費';
+  $('modeOnce').setAttribute('aria-pressed', String(once));
+  $('modeMonthly').setAttribute('aria-pressed', String(!once));
+
+  const what = name ? '買「' + name + '」' : '';
+  const head = [once ? '現在花' : '每個月花', nt(S.price), what].filter(Boolean).join(' ');
+  $('lead').textContent = head + '，如果改拿去投資 ' + S.years + ' 年，' + (once ? '可能變成' : '累積可能是');
+
+  const p = parts(g.fv);
+  $('num').textContent = p[0];
+  $('unit').textContent = p[1];
+
+  const m = S.price > 0 ? g.fv / g.spent : 0;
+  $('mult').textContent = '×' + times(m) + ' 倍';
+  $('mult').hidden = S.price <= 0;
+  $('realNote').hidden = !S.real;
+
+  $('spent').textContent = nt(g.spent);
+  const gain = g.fv - g.spent;
+  const pos = gain >= 0;
+  $('gainLab').textContent = pos ? '投資多出' : '投資少了';
+  $('gain').textContent = (pos ? '+' : '−') + nt(Math.abs(gain));
+  $('gain').className = 'val ' + (pos ? 'up' : 'down');
+
+  if (S.price > 0) {
+    const items = g.fv / S.price;
+    const unit = name ? '個同款「' + name + '」' : '份同樣價格的東西';
+    $('think').replaceChildren();
+    const b = document.createElement('b');
+    b.textContent = '約 ' + times(items) + ' ' + unit;
+    $('think').append('到時候這筆錢可以買 ', b, S.real ? '（以今天的價格計算）。' : '（不計物價上漲）。');
+    const ask = document.createElement('span');
+    ask.className = 'ask';
+    ask.textContent = '再想一下：它值得你現在買，而不是等這筆錢長大嗎？';
+    $('think').append(ask);
+  } else {
+    $('think').textContent = '輸入價格，就能看到這筆錢投資後的樣子。';
+  }
+
+  $('yearsV').textContent = S.years + ' 年';
+  $('rateV').textContent = S.rate.toFixed(1) + '%';
+  document.querySelectorAll('.chips button').forEach(function (b) {
+    const isFund = b.dataset.fund === '1';
+    b.setAttribute('aria-pressed', String(Number(b.dataset.rate) === S.rate && isFund === S.fund));
+  });
+  $('fundNote').hidden = !S.fund;
+
+  const list = Array.from(new Set(YEARS.concat([S.years]))).sort(function (a, b) { return a - b; });
+  const vals = list.map(function (y) { return growth(S.price, S.mode, y, S.rate, S.real); });
+  const max = Math.max.apply(null, vals.map(function (v) { return v.fv; }).concat([1]));
+  const rows = list.map(function (y, idx) {
+    const v = vals[idx];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ms';
+    btn.setAttribute('aria-pressed', String(y === S.years));
+    btn.setAttribute('aria-label', y + ' 年後 ' + nt(v.fv));
+    btn.addEventListener('click', function () {
+      S.years = y;
+      $('years').value = String(y);
+      render();
+    });
+    const ly = document.createElement('span');
+    ly.className = 'y';
+    ly.textContent = y + ' 年';
+    const bar = document.createElement('span');
+    bar.className = 'bar';
+    const fv = document.createElement('span');
+    fv.className = 'fv';
+    fv.style.width = Math.max(v.fv / max * 100, v.fv > 0 ? 2 : 0) + '%';
+    const sp = document.createElement('span');
+    sp.className = 'sp';
+    sp.style.width = (v.fv > 0 ? Math.min(v.spent / v.fv * 100, 100) : 0) + '%';
+    fv.append(sp);
+    bar.append(fv);
+    const lv = document.createElement('span');
+    lv.className = 'v';
+    lv.textContent = nt(v.fv);
+    btn.append(ly, bar, lv);
+    return btn;
+  });
+  $('rows').replaceChildren.apply($('rows'), rows);
+}
+
+$('name').addEventListener('input', function (e) { S.name = e.target.value; render(); });
+$('price').addEventListener('input', function (e) {
+  const v = parseFloat(e.target.value);
+  S.price = isFinite(v) && v >= 0 ? Math.min(v, 1e8) : 0;
+  render();
+});
+$('modeOnce').addEventListener('click', function () { S.mode = 'once'; render(); });
+$('modeMonthly').addEventListener('click', function () { S.mode = 'monthly'; render(); });
+$('years').addEventListener('input', function (e) { S.years = parseInt(e.target.value, 10); render(); });
+$('rate').addEventListener('input', function (e) { S.rate = parseFloat(e.target.value); S.fund = false; render(); });
+$('real').addEventListener('change', function (e) { S.real = e.target.checked; render(); });
+document.querySelectorAll('.chips button').forEach(function (b) {
+  b.addEventListener('click', function () {
+    S.rate = Number(b.dataset.rate);
+    S.fund = b.dataset.fund === '1';
+    $('rate').value = String(S.rate);
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>
